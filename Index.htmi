@@ -1,0 +1,1098 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title data-i18n="siteTitle">احسب ابتسامة أرضك</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        :root {
+            /* Palette */
+            --primary-color: #2e7d32;
+            --primary-dark: #1b5e20;
+            --primary-light: #4caf50;
+            --secondary-color: #2196f3;
+            --accent-color: #ff9800;
+            --success-color: #388e3c;
+            --text-color: #333333;
+            --text-light: #666666;
+            --background-color: #f8f9fa;
+            --surface-color: #ffffff;
+            --border-color: #e0e0e0;
+            
+            /* Physics & Layout */
+            --shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+            --shadow-sm: 0 4px 10px rgba(0,0,0,0.05);
+            --border-radius: 16px;
+            --border-radius-sm: 8px;
+            --ease-elastic: cubic-bezier(0.34, 1.56, 0.64, 1);
+            --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        html { scroll-behavior: smooth; }
+        body { font-family: 'Cairo', sans-serif; line-height: 1.7; color: var(--text-color); background-color: var(--background-color); transition: direction 0.3s; overflow-x: hidden; }
+        
+        /* --- Layout --- */
+        .container { width: 100%; max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+        
+        .view-section { 
+            display: none; 
+            padding-top: 90px; 
+            min-height: 100vh; 
+            opacity: 0; 
+            transform: translateY(20px); 
+            transition: opacity 0.5s var(--ease-smooth), transform 0.5s var(--ease-smooth); 
+        }
+        
+        .view-section.active { 
+            display: block; 
+            animation: slideUpFade 0.6s var(--ease-smooth) forwards; 
+        }
+        
+        @keyframes slideUpFade { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* --- Navbar --- */
+        .navbar { 
+            background: rgba(255, 255, 255, 0.96); 
+            backdrop-filter: blur(12px); 
+            position: fixed; top: 0; width: 100%; z-index: 1000; 
+            height: 70px; display: flex; align-items: center; 
+            box-shadow: 0 2px 15px rgba(0,0,0,0.05); 
+        }
+        .nav-container { display: flex; align-items: center; justify-content: space-between; width: 100%; }
+        
+        .nav-logo { 
+            display: flex; align-items: center; gap: 0.5rem; 
+            font-size: 1.3rem; font-weight: 800; color: var(--primary-color); 
+            cursor: pointer; transition: transform 0.2s var(--ease-elastic);
+        }
+        .nav-logo:hover { transform: scale(1.05); }
+        
+        .nav-menu { display: flex; list-style: none; gap: 1.5rem; }
+        .nav-link { 
+            text-decoration: none; color: var(--text-color); font-weight: 700; 
+            padding: 0.5rem 1rem; border-radius: 8px; transition: all 0.3s; 
+            position: relative;
+        }
+        .nav-link.active { color: var(--primary-color); background: rgba(46, 125, 50, 0.08); }
+        
+        .nav-controls { display: flex; gap: 10px; align-items: center; }
+        .lang-btn { 
+            background: var(--primary-color); color: white; border: none; 
+            padding: 0.4rem 1.2rem; border-radius: 50px; cursor: pointer; 
+            font-weight: 700; font-family: inherit; font-size: 0.9rem; 
+            transition: transform 0.2s var(--ease-elastic);
+        }
+        .lang-btn:active { transform: scale(0.9); }
+
+        .hamburger { display: none; flex-direction: column; cursor: pointer; gap: 5px; padding: 5px; }
+        .bar { width: 26px; height: 3px; background: var(--text-color); border-radius: 3px; transition: 0.3s; }
+        .hamburger.active .bar:nth-child(1) { transform: rotate(45deg) translate(5px, 6px); }
+        .hamburger.active .bar:nth-child(2) { opacity: 0; }
+        .hamburger.active .bar:nth-child(3) { transform: rotate(-45deg) translate(5px, -6px); }
+
+        /* --- Mobile Nav --- */
+        @media (max-width: 768px) {
+            .nav-menu { 
+                position: absolute; top: 70px; left: 0; right: 0; 
+                background: white; flex-direction: column; padding: 1.5rem; 
+                gap: 1rem; box-shadow: 0 10px 20px rgba(0,0,0,0.1); 
+                clip-path: inset(0 0 100% 0); transition: clip-path 0.5s var(--ease-elastic); 
+            }
+            .nav-menu.active { clip-path: inset(0 0 0 0); }
+            .nav-link { display: block; padding: 1rem; text-align: center; background: #f8f9fa; border-radius: 12px; }
+            .hamburger { display: flex; }
+        }
+
+        /* --- Hero --- */
+        .hero { 
+            background: linear-gradient(135deg, var(--primary-color), #0d3b10); 
+            color: white; padding: 130px 0 80px; margin-top: -90px; 
+            border-radius: 0 0 40px 40px; position: relative; overflow: hidden; 
+        }
+        .hero-container { display: flex; align-items: center; justify-content: space-between; gap: 2rem; position: relative; z-index: 1; }
+        .hero-content { flex: 1; animation: fadeInRight 0.8s var(--ease-smooth); }
+        .hero-title { font-size: 3rem; font-weight: 800; line-height: 1.2; margin-bottom: 1.5rem; }
+        .hero-btn-group { display: flex; gap: 1rem; margin-top: 2rem; flex-wrap: wrap; }
+        
+        /* Water Animation */
+        .water-visual { flex: 1; display: flex; justify-content: center; position: relative; height: 300px; animation: fadeInLeft 0.8s var(--ease-smooth); }
+        .bund-shape { 
+            width: 220px; height: 110px; 
+            border: 5px solid rgba(255,255,255,0.9); border-bottom: 0; 
+            border-radius: 110px 110px 0 0; position: absolute; bottom: 40px; 
+            background: rgba(255,255,255,0.1); backdrop-filter: blur(5px);
+            overflow: hidden;
+        }
+        .water-fill {
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 0;
+            background: rgba(33, 150, 243, 0.5);
+            animation: fillUp 4s infinite ease-in-out;
+        }
+        .drop { 
+            position: absolute; top: 0; width: 14px; height: 14px; 
+            background: #fff; border-radius: 0 50% 50% 50%; transform: rotate(45deg); 
+            animation: dropFall 2s infinite ease-in; opacity: 0; 
+        }
+        @keyframes dropFall { 0% { top: 0; opacity: 0; } 20% { opacity: 1; } 80% { top: 150px; opacity: 1; } 90% {opacity: 0;} 100% { top: 160px; opacity: 0; } }
+        @keyframes fillUp { 0%, 20% { height: 0; } 80% { height: 50px; } 100% { height: 0; } }
+        @keyframes fadeInLeft { from {opacity:0; transform: translateX(-30px);} to {opacity:1; transform: translateX(0);} }
+        @keyframes fadeInRight { from {opacity:0; transform: translateX(30px);} to {opacity:1; transform: translateX(0);} }
+
+        /* --- Buttons --- */
+        .btn { 
+            display: inline-flex; align-items: center; justify-content: center; gap: 0.6rem; 
+            padding: 0.9rem 2rem; border: none; border-radius: 50px; 
+            font-family: inherit; font-size: 1rem; font-weight: 700; cursor: pointer; 
+            transition: transform 0.2s var(--ease-elastic), box-shadow 0.2s; 
+            text-decoration: none; 
+        }
+        .btn:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0,0,0,0.15); }
+        .btn:active { transform: scale(0.96); }
+        
+        .btn-primary { background: white; color: var(--primary-color); }
+        .btn-secondary { background: rgba(255,255,255,0.2); color: white; border: 2px solid white; }
+        .btn-action { background: var(--primary-color); color: white; width: 100%; margin-top: 1rem; box-shadow: 0 4px 15px rgba(46,125,50,0.3); }
+        .btn-success { background: var(--success-color); color: white; font-size: 0.9rem; padding: 0.6rem 1.2rem; }
+        .btn-outline { background: transparent; color: var(--text-color); border: 2px solid var(--border-color); }
+
+        /* --- Features --- */
+        .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 2rem; margin-bottom: 4rem; }
+        .feat-card { 
+            background: white; padding: 2rem; border-radius: var(--border-radius); 
+            box-shadow: var(--shadow); text-align: center; border: 1px solid rgba(0,0,0,0.03); 
+            transition: transform 0.3s var(--ease-smooth);
+        }
+        .feat-card:hover { transform: translateY(-10px); }
+        .feat-icon { font-size: 2.5rem; color: var(--primary-color); margin-bottom: 1rem; background: #e8f5e9; width: 80px; height: 80px; display: flex; align-items: center; justify-content: center; border-radius: 50%; margin-left: auto; margin-right: auto; }
+
+        /* --- Calculator --- */
+        .calc-container { display: grid; grid-template-columns: 1fr; gap: 2rem; max-width: 800px; margin: 0 auto; }
+        .card { background: white; padding: 2rem; border-radius: var(--border-radius); box-shadow: var(--shadow); border: 1px solid rgba(0,0,0,0.02); }
+        
+        .input-group { margin-bottom: 2rem; }
+        .input-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+        .input-header label { font-weight: 700; color: var(--primary-dark); display: flex; align-items: center; gap: 8px; }
+        .input-value { color: var(--primary-color); font-weight: 800; font-size: 1.1rem; }
+        
+        .slider-wrapper { background: #f1f3f5; padding: 1.5rem; border-radius: 12px; margin-bottom: 1rem; }
+        .slider { width: 100%; height: 8px; background: #ddd; border-radius: 5px; outline: none; -webkit-appearance: none; cursor: pointer; }
+        .slider::-webkit-slider-thumb { 
+            -webkit-appearance: none; width: 24px; height: 24px; 
+            background: var(--primary-color); border-radius: 50%; 
+            border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.3); 
+            transition: transform 0.2s; 
+        }
+        .slider::-webkit-slider-thumb:hover { transform: scale(1.2); }
+        
+        .option-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 0.5rem; }
+        .option-btn { 
+            padding: 0.8rem; background: white; border: 1px solid #e0e0e0; 
+            border-radius: 10px; text-align: center; font-size: 0.85rem; 
+            cursor: pointer; transition: 0.2s; color: var(--text-light); font-weight: 600; 
+        }
+        .option-btn.active { 
+            background: var(--primary-color); color: white; border-color: var(--primary-color); 
+            box-shadow: 0 4px 12px rgba(46, 125, 50, 0.2); transform: translateY(-2px); 
+        }
+
+        .select-styled { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #ddd; background: white; font-family: inherit; font-size: 1rem; cursor: pointer; }
+        .input-styled { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #ddd; font-family: inherit; font-size: 1rem; }
+
+        /* --- Results --- */
+        .results-panel { 
+            display: none; background: white; border-radius: var(--border-radius); 
+            box-shadow: 0 15px 40px rgba(0,0,0,0.12); overflow: hidden; margin-top: 2rem; 
+            animation: slideUpFade 0.6s var(--ease-elastic); 
+        }
+        .results-header { background: var(--primary-dark); color: white; padding: 1.5rem; display: flex; justify-content: space-between; align-items: center; }
+        
+        .results-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; padding: 2rem; background: #f4f9f4; }
+        .result-box { text-align: center; padding: 1.2rem; background: white; border-radius: 12px; box-shadow: var(--shadow-sm); border: 1px solid #eee; }
+        .result-val { font-size: 1.6rem; font-weight: 800; color: var(--primary-color); display: block; margin-bottom: 0.2rem; }
+        .result-lbl { color: var(--text-light); font-size: 0.85rem; font-weight: 600; }
+        
+        .specs-list { padding: 0 2rem 2rem; }
+        .spec-header { margin: 1.5rem 0 1rem; color: var(--primary-dark); font-size: 1.1rem; border-bottom: 2px solid #eee; padding-bottom: 0.5rem; }
+        .spec-row { display: flex; justify-content: space-between; padding: 0.8rem 0; border-bottom: 1px dashed #e0e0e0; font-size: 1rem; }
+        .spec-row:last-child { border-bottom: none; }
+        .spec-row strong { color: var(--primary-color); }
+
+        /* --- Smile Visualization Styles --- */
+        .smiles-wrapper {
+            padding: 2rem;
+            background: #fdfbf7; /* Earthy background tint */
+            border-top: 1px solid #eee;
+            text-align: center;
+        }
+        .smiles-canvas-container {
+            width: 100%;
+            height: 300px;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.05);
+            background: #e4d8c5; /* Soil Color */
+            position: relative;
+            margin-top: 1rem;
+        }
+        .smile-title {
+            color: var(--primary-dark);
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        /* --- Docs Equation Styles --- */
+        .docs-card { margin-bottom: 2rem; }
+        .chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; margin-top: 2rem; }
+        .validation-table { width: 100%; border-collapse: collapse; margin-top: 1rem; background: white; border-radius: 8px; overflow: hidden; box-shadow: var(--shadow-sm); }
+        .validation-table th { background: var(--primary-color); color: white; padding: 1rem; text-align: start; }
+        .validation-table td { padding: 1rem; border-bottom: 1px solid #eee; }
+        .citation { font-size: 0.8rem; color: #888; display: block; margin-top: 0.5rem; font-style: italic; }
+
+        .equation-box {
+            background: #f8f9fa;
+            border-left: 5px solid var(--primary-color); /* Green line for emphasis */
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border-radius: 0 8px 8px 0;
+            position: relative;
+        }
+        
+        [dir="ltr"] .equation-box {
+            border-left: none;
+            border-right: 5px solid var(--primary-color);
+            border-radius: 8px 0 0 8px;
+        }
+
+        .math-formula {
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            color: var(--primary-dark);
+            font-size: 1.1rem;
+            margin: 0.5rem 0;
+            background: white;
+            padding: 10px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            display: inline-block;
+            direction: ltr; /* Formulas should be LTR */
+        }
+        
+        .eq-title {
+            font-weight: 700;
+            color: var(--text-color);
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+        
+        .eq-desc {
+            font-size: 0.9rem;
+            color: var(--text-light);
+            margin-top: 0.5rem;
+        }
+
+        .academic-note {
+            margin-top: 15px; 
+            font-size: 0.9rem; 
+            color: #4a5568; 
+            background: #edf2f7; 
+            padding: 15px; 
+            border-radius: 8px; 
+            border: 1px solid #cbd5e0; 
+            line-height: 1.6;
+            position: relative;
+        }
+        .academic-note i {
+            color: var(--secondary-color);
+            margin-left: 5px;
+        }
+
+        /* --- Footer --- */
+        .footer { text-align: center; padding: 3rem 1rem; color: var(--text-light); border-top: 1px solid #eee; margin-top: 4rem; }
+
+        @media (max-width: 768px) {
+            .hero-container { flex-direction: column; text-align: center; }
+            .hero-title { font-size: 2.2rem; }
+            .hero-btn-group { justify-content: center; }
+            .water-visual { display: none; } 
+            .results-grid { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar">
+        <div class="container nav-container">
+            <div class="nav-logo" onclick="switchView('home')">
+                <i class="fas fa-leaf"></i> 
+                <span data-i18n="siteTitle" style="margin-right: 8px; margin-left: 8px;">احسب ابتسامة أرضك</span>
+            </div>
+            
+            <div class="nav-controls">
+                <button class="lang-btn" id="lang-btn">EN</button>
+                <div class="hamburger" id="hamburger">
+                    <span class="bar"></span><span class="bar"></span><span class="bar"></span>
+                </div>
+            </div>
+        </div>
+        <ul class="nav-menu" id="nav-menu">
+            <li><a href="#" class="nav-link active" onclick="switchView('home')" data-i18n="home">الرئيسية</a></li>
+            <li><a href="#" class="nav-link" onclick="switchView('calculator')" data-i18n="calculator">الآلة الحاسبة</a></li>
+            <li><a href="#" class="nav-link" onclick="switchView('docs')" data-i18n="documentation">التوثيق</a></li>
+        </ul>
+    </nav>
+
+    <main id="view-home" class="view-section active">
+        <div class="hero">
+            <div class="container hero-container">
+                <div class="hero-content">
+                    <h1 class="hero-title" data-i18n="heroTitle">احسب ابتسامة أرضك</h1>
+                    <p style="opacity: 0.9; margin-bottom: 2rem; max-width: 600px; font-size: 1.1rem; line-height: 1.6;" data-i18n="heroDesc">
+                        نظام متكامل يعتمد على معادلات علمية موثقة من منظمة الفاو لتصميم أنظمة حصاد مياه الأمطار بدقة.
+                    </p>
+                    <div class="hero-btn-group">
+                        <button class="btn btn-primary" onclick="switchView('calculator')" data-i18n="startBtn">ابدأ التصميم</button>
+                        <button class="btn btn-secondary" onclick="switchView('docs')" data-i18n="learnMore">التوثيق العلمي</button>
+                    </div>
+                </div>
+                <div class="hero-visual water-visual">
+                    <div class="drop"></div>
+                    <div class="bund-shape"><div class="water-fill"></div></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <div style="text-align: center; margin-bottom: 3rem;">
+                <h2 style="color: var(--primary-dark); font-size: 2rem;" data-i18n="featuresTitle">لماذا هذا النظام؟</h2>
+                <div style="width: 60px; height: 4px; background: var(--accent-color); margin: 10px auto; border-radius: 2px;"></div>
+            </div>
+            
+            <div class="feature-grid">
+                <div class="feat-card">
+                    <div class="feat-icon"><i class="fas fa-calculator"></i></div>
+                    <h3 data-i18n="feat1Title">علمي وموثق</h3>
+                    <p data-i18n="feat1Desc" style="color: #666;">يعتمد على معادلات E-1 إلى E-10 من دليل الفاو لحصاد المياه.</p>
+                </div>
+                <div class="feat-card">
+                    <div class="feat-icon"><i class="fas fa-map-marked-alt"></i></div>
+                    <h3 data-i18n="feat2Title">مخصص للمنطقة</h3>
+                    <p data-i18n="feat2Desc" style="color: #666;">مصمم خصيصاً للمناطق الجافة وشبه الجافة (50-500 ملم).</p>
+                </div>
+                <div class="feat-card">
+                    <div class="feat-icon"><i class="fas fa-file-download"></i></div>
+                    <h3 data-i18n="feat3Title">تقارير فورية</h3>
+                    <p data-i18n="feat3Desc" style="color: #666;">احصل على الأبعاد الدقيقة والتفاصيل الهندسية وقم بتنزيل التقرير.</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <main id="view-calculator" class="view-section">
+        <div class="container">
+            <h2 style="margin-bottom: 2rem; text-align: center; color: var(--primary-dark);" data-i18n="calculatorTitle">الآلة الحاسبة</h2>
+            
+            <div class="calc-container">
+                <div class="card">
+                    <form id="calc-form">
+                        <div class="input-group">
+                            <div class="input-header">
+                                <label><i class="fas fa-cloud-rain"></i> <span data-i18n="rainfall">المنطقة المناخية</span></label>
+                                <span id="val-climate" class="input-value">-</span>
+                            </div>
+                            <div class="slider-wrapper">
+                                <input type="range" id="climate-zone" class="slider" min="0" max="100" step="25" value="25">
+                            </div>
+                            <div class="option-grid" id="climate-opts">
+                                <div class="option-btn" data-val="0" data-i18n="lblArid">جافة جداً</div>
+                                <div class="option-btn active" data-val="25" data-i18n="lblSemiArid">شبه جافة</div>
+                                <div class="option-btn" data-val="50" data-i18n="lblDry">جافة</div>
+                                <div class="option-btn" data-val="75" data-i18n="lblSemiHumid">شبه رطبة</div>
+                                <div class="option-btn" data-val="100" data-i18n="lblHumid">رطبة</div>
+                            </div>
+                        </div>
+
+                        <div class="input-group">
+                            <div class="input-header">
+                                <label><i class="fas fa-mountain"></i> <span data-i18n="slope">الميل</span></label>
+                                <span id="val-slope" class="input-value">5%</span>
+                            </div>
+                            <div class="slider-wrapper">
+                                <input type="range" id="slope" class="slider" min="0" max="15" step="1" value="5">
+                            </div>
+                            <div class="option-grid" id="slope-opts">
+                                <div class="option-btn" data-val="0">0%</div>
+                                <div class="option-btn active" data-val="5">5%</div>
+                                <div class="option-btn" data-val="10">10%</div>
+                                <div class="option-btn" data-val="15">15%</div>
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+                            <div>
+                                <label style="display:block; margin-bottom: 0.8rem; font-weight: 700;"><i class="fas fa-tree"></i> <span data-i18n="purpose">الغرض</span></label>
+                                <select id="purpose" class="select-styled">
+                                    <option value="0" data-i18n="grazing">الرعي</option>
+                                    <option value="25" data-i18n="shrubs">الشجيرات</option>
+                                    <option value="50" selected data-i18n="trees">الأشجار</option>
+                                    <option value="75" data-i18n="fieldCrops">محاصيل</option>
+                                    <option value="100" data-i18n="soilCons">حفظ التربة</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="display:block; margin-bottom: 0.8rem; font-weight: 700;"><i class="fas fa-ruler-combined"></i> <span data-i18n="area">المساحة</span></label>
+                                <div style="display: flex; gap: 8px;">
+                                    <input type="number" id="area-val" value="1" class="input-styled" style="width: 50%;">
+                                    <select id="area-unit" class="select-styled" style="width: 50%;">
+                                        <option value="dunam" data-i18n="dunam">دونم</option>
+                                        <option value="hectare" data-i18n="hectare">هكتار</option>
+                                        <option value="acre" data-i18n="acre">فدان</option>
+                                        <option value="square-meter" data-i18n="squareMeter">متر</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-action" data-i18n="calcBtn">احسب التصميم</button>
+                        <button type="reset" class="btn btn-outline" style="width: 100%; margin-top: 10px;" data-i18n="reset">إعادة تعيين</button>
+                    </form>
+                </div>
+
+                <div id="results-area" class="results-panel">
+                    <div class="results-header">
+                        <span style="font-weight: 700; font-size: 1.2rem;" data-i18n="resultsTitle">نتائج التصميم</span>
+                        <button id="save-results" class="btn btn-success"><i class="fas fa-file-download"></i> <span data-i18n="saveBtn">حفظ</span></button>
+                    </div>
+                    
+                    <div class="results-grid">
+                        <div class="result-box">
+                            <span class="result-val" id="res-d">-</span>
+                            <span class="result-lbl" data-i18n="diameter">القطر (D)</span>
+                        </div>
+                        <div class="result-box">
+                            <span class="result-val" id="res-ca">-</span>
+                            <span class="result-lbl" data-i18n="ratio">نسبة C:A</span>
+                        </div>
+                        <div class="result-box">
+                            <span class="result-val" id="res-total">-</span>
+                            <span class="result-lbl" data-i18n="pitsTotal">عدد الحفر</span>
+                        </div>
+                        <div class="result-box">
+                            <span class="result-val" id="res-dens">-</span>
+                            <span class="result-lbl" data-i18n="pitsPerHectare">عدد/هكتار</span>
+                        </div>
+                    </div>
+
+                    <div class="specs-list">
+                        <h4 class="spec-header" data-i18n="techDetails">التفاصيل الفنية للتنفيذ</h4>
+                        <div class="spec-row">
+                            <span data-i18n="height">ارتفاع السد (H)</span>
+                            <strong id="res-h">-</strong>
+                        </div>
+                        <div class="spec-row">
+                            <span data-i18n="rowSpacing">المسافة بين الصفوف (L)</span>
+                            <strong id="res-l">-</strong>
+                        </div>
+                        <div class="spec-row">
+                            <span data-i18n="pitSpacing">المسافة بين الحفر (Y)</span>
+                            <strong id="res-y">-</strong>
+                        </div>
+                        <div class="spec-row">
+                            <span data-i18n="bundDist">المسافة بين الهلالات</span>
+                            <strong id="res-bund-dist" style="color: var(--accent-color);">-</strong>
+                        </div>
+                        <div class="spec-row">
+                            <span data-i18n="cultArea">مساحة الزراعة</span>
+                            <strong id="res-cult">-</strong>
+                        </div>
+                        <div class="spec-row">
+                            <span data-i18n="catchArea">مساحة التجميع</span>
+                            <strong id="res-catch">-</strong>
+                        </div>
+                    </div>
+
+                    <div class="smiles-wrapper">
+                        <div class="smile-title">
+                            <i class="fas fa-smile-wink" style="color: var(--accent-color); font-size: 1.4rem;"></i>
+                            <span data-i18n="visualTitle">كيف تبتسم أرضك؟ (مخطط التوزيع)</span>
+                        </div>
+                        <p style="font-size: 0.9rem; color: #666; margin-top: 5px;" data-i18n="visualDesc">
+                            توزيع الهلالات بنظام "رقعة الشطرنج" لضمان التقاط المياه الفائضة من الصف الأول في الصف الثاني.
+                        </p>
+                        <div class="smiles-canvas-container">
+                            <canvas id="smilesCanvas"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div style="padding: 1.5rem; height: 350px; background: #fff; border-top: 1px solid #eee;">
+                        <canvas id="mainChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <main id="view-docs" class="view-section">
+        <div class="container">
+            <h2 style="margin-bottom: 2rem; text-align: center; color: var(--primary-dark);" data-i18n="docsTitle">التوثيق العلمي</h2>
+            
+            <div class="card docs-card">
+                <h3 style="color: var(--primary-dark); margin-bottom: 1rem; border-bottom: 2px solid var(--primary-light); padding-bottom: 0.5rem;" data-i18n="methodHeader">منهجية التصميم</h3>
+                <p data-i18n="methodBody">يعتمد النظام على مفهوم "المستجمعات المائية الصغرى". جميع المعادلات مستمدة من دليل منظمة الأغذية والزراعة (FAO).</p>
+                
+                <div style="margin-top: 2rem;">
+                    <h4 style="margin-bottom: 1rem; color: var(--primary-dark);" data-i18n="equationsTitle">المعادلات المستخدمة في النظام</h4>
+                    
+                    <div class="equation-box">
+                        <span class="eq-title" data-i18n="eq1Title">E-1: حساب القطر (D)</span>
+                        <div class="math-formula">D = BaseDiameter + PurposeAdjustment</div>
+                        <div class="eq-desc" data-i18n="eq1Desc">النطاق: 2 - 12 متر. يعتمد على المنطقة المناخية (جافة جداً = 8م، شبه جافة = 6م، رطبة = 4م).</div>
+                    </div>
+
+                    <div class="equation-box">
+                        <span class="eq-title" data-i18n="eq2Title">E-2: ارتفاع السد (H)</span>
+                        <div class="math-formula">H = 30 + 2.5 × (D - 2)</div>
+                        <div class="eq-desc" data-i18n="eq2Desc">يتم حساب الارتفاع بالسنتيمتر لضمان استقرار الهيكل الهندسي.</div>
+                    </div>
+
+                    <div class="equation-box">
+                        <span class="eq-title" data-i18n="eqRatioTitle">E-6: نسبة التجميع (C:A)</span>
+                        <div class="math-formula">C:A = BaseRatio × (1 + (Slope × 0.02))</div>
+                        <div class="eq-desc" data-i18n="eqRatioDesc">المعادلة الرئيسية المستخدمة لحساب النسبة بين مساحة التجميع ومساحة الزراعة، مع الأخذ بعين الاعتبار انحدار الأرض.</div>
+                        
+                        <div class="academic-note">
+                            <strong style="display:block; margin-bottom: 8px;"><i class="fas fa-info-circle"></i> <span data-i18n="scientificNoteTitle">ملاحظة علمية حول المعادلة:</span></strong>
+                            <span data-i18n="scientificNoteText">
+                                تم حساب نسبة التجميع (C:A) بالاعتماد على المبادئ الأساسية لمنظمة الفاو (Critchley & Siegert, 1991)، مع استخدام صيغة تطبيقية معدلة (Modified Empirical Formula) لتعويض تأثير الميل، حيث تم اعتماد معامل زيادة (0.02) لكل درجة ميل لتبسيط حساب فاقد سرعة الجريان، وهو نهج متبع في أدوات التصميم الأولية (Greener Land).
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="equation-box">
+                        <span class="eq-title" data-i18n="eqSpacingTitle">E-4 & E-5: المسافات</span>
+                        <div class="math-formula">L (Row Spacing) = 0.75 × D</div>
+                        <div class="math-formula">Y (Pit Spacing) = 1.10 × D</div>
+                        <div class="eq-desc" data-i18n="eqSpacingDesc">تضمن هذه المسافات تداخلاً مناسباً لجمع المياه ومنع الانجراف.</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chart-grid">
+                <div class="card">
+                    <h4 style="text-align: center; margin-bottom: 1rem;" data-i18n="chartRainDia">القطر مقابل الأمطار</h4>
+                    <div style="height: 250px;"><canvas id="diameterChart"></canvas></div>
+                </div>
+                <div class="card">
+                    <h4 style="text-align: center; margin-bottom: 1rem;" data-i18n="chartHeightDia">الارتفاع مقابل القطر</h4>
+                    <div style="height: 250px;"><canvas id="heightChart"></canvas></div>
+                </div>
+            </div>
+
+            <div class="card docs-card">
+                <h3 style="color: var(--primary-dark); margin-bottom: 1rem;" data-i18n="slopeAnalysisHeader">تحليل تأثير الميل على نسبة التجميع</h3>
+                <div style="height: 300px;">
+                    <canvas id="slopeChart"></canvas>
+                </div>
+                <span class="citation">C:A = Base * (1 + Slope * 0.02)</span>
+            </div>
+
+            <div class="card docs-card">
+                <h3 style="color: var(--primary-dark); margin-bottom: 1rem;" data-i18n="validationHeader">التحقق من الدقة</h3>
+                <table class="validation-table">
+                    <thead>
+                        <tr>
+                            <th data-i18n="valRegion">المنطقة</th>
+                            <th data-i18n="valRef">المرجع (FAO)</th>
+                            <th data-i18n="valCalc">المحسوب</th>
+                            <th data-i18n="valStatus">الحالة</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Arid (<250mm)</td>
+                            <td>4.0 : 1</td>
+                            <td>4.00 : 1</td>
+                            <td style="color: green;">✔ Valid</td>
+                        </tr>
+                        <tr>
+                            <td>Semi-Arid</td>
+                            <td>3.0 : 1</td>
+                            <td>3.00 : 1</td>
+                            <td style="color: green;">✔ Valid</td>
+                        </tr>
+                        <tr>
+                            <td>Humid</td>
+                            <td>2.0 : 1</td>
+                            <td>2.00 : 1</td>
+                            <td style="color: green;">✔ Valid</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <p>&copy; 2025 <span data-i18n="siteTitle">احسب ابتسامة أرضك</span>. Designed by Omar Yaseen.</p>
+    </footer>
+
+    <script>
+        // --- TRANSLATIONS ---
+        const i18n = {
+            ar: {
+                siteTitle: "احسب ابتسامة أرضك",
+                home: "الرئيسية", calculator: "الآلة الحاسبة", documentation: "التوثيق",
+                heroTitle: "حصاد مياه الأمطار بدقة علمية",
+                heroDesc: "صمم نظام الهلالات المائية لأرضك بناءً على معادلات منظمة الفاو والمصادر العلمية الموثقة.",
+                startBtn: "ابدأ التصميم", learnMore: "التوثيق العلمي",
+                featuresTitle: "لماذا هذا النظام؟",
+                feat1Title: "علمي وموثق", feat1Desc: "يعتمد على معادلات E-1 إلى E-10 من دليل الفاو.",
+                feat2Title: "مخصص للمنطقة", feat2Desc: "مناسب للمناطق الجافة (50-500 ملم).",
+                feat3Title: "تقارير فورية", feat3Desc: "احصل على الأبعاد الدقيقة وقم بتنزيل التقرير.",
+                calculatorTitle: "آلة تصميم الهلالات",
+                rainfall: "معدل الأمطار", slope: "ميل الأرض", purpose: "الغرض من الزراعة", area: "مساحة الأرض",
+                lblArid: "جافة جداً (<250)", lblSemiArid: "شبه جافة (250-500)", lblDry: "جافة (500-750)", lblSemiHumid: "شبه رطبة (750-1000)", lblHumid: "رطبة (>1000)",
+                grazing: "الرعي (أقطار كبيرة)", shrubs: "شجيرات", trees: "أشجار مثمرة", fieldCrops: "محاصيل حقلية", soilCons: "حفظ التربة",
+                dunam: "دونم", hectare: "هكتار", acre: "فدان", squareMeter: "متر مربع",
+                calcBtn: "احسب التصميم", saveBtn: "حفظ التقرير", reset: "إعادة تعيين",
+                resultsTitle: "نتائج التصميم الهندسية",
+                diameter: "قطر الهلال (D)", ratio: "نسبة التجميع (C:A)",
+                height: "ارتفاع السد (H)", catchArea: "مساحة التجميع", cultArea: "مساحة الزراعة", techDetails: "التفاصيل الفنية للتنفيذ", 
+                pitsTotal: "عدد الهلالات", pitsPerHectare: "كثافة (عدد/هكتار)", rowSpacing: "بين الصفوف (L)", pitSpacing: "بين الحفر (Y)", bundDist: "المسافة الصافية بين الهلالات",
+                docsTitle: "التوثيق والمصادر",
+                methodHeader: "منهجية التصميم",
+                methodBody: "يعتمد النظام على مفهوم 'المستجمعات المائية الصغرى'، حيث يتم تجميع المياه من مساحة كبيرة لتركيزها في منطقة الجذور.",
+                equationsTitle: "المعادلات المستخدمة في النظام",
+                eq1Title: "E-1: حساب القطر (D)",
+                eq1Desc: "النطاق: 2 - 12 متر. يعتمد على المنطقة المناخية (جافة جداً = 8م، شبه جافة = 6م، رطبة = 4م).",
+                eq2Title: "E-2: ارتفاع السد (H)",
+                eq2Desc: "يتم حساب الارتفاع بالسنتيمتر لضمان استقرار الهيكل الهندسي.",
+                eqRatioTitle: "E-6: نسبة التجميع (C:A)",
+                eqRatioDesc: "المعادلة الرئيسية المستخدمة لحساب النسبة بين مساحة التجميع ومساحة الزراعة، مع الأخذ بعين الاعتبار انحدار الأرض.",
+                
+                // Specific Scientific Note Translation
+                scientificNoteTitle: "ملاحظة علمية حول المعادلة:",
+                scientificNoteText: "تم حساب نسبة التجميع (C:A) بالاعتماد على المبادئ الأساسية لمنظمة الفاو (Critchley & Siegert, 1991)، مع استخدام صيغة تطبيقية معدلة (Modified Empirical Formula) لتعويض تأثير الميل، حيث تم اعتماد معامل زيادة (0.02) لكل درجة ميل لتبسيط حساب فاقد سرعة الجريان، وهو نهج متبع في أدوات التصميم الأولية (Greener Land).",
+
+                eqSpacingTitle: "E-4 & E-5: المسافات",
+                eqSpacingDesc: "تضمن هذه المسافات تداخلاً مناسباً لجمع المياه ومنع الانجراف.",
+                slopeAnalysisHeader: "تحليل تأثير الميل على C:A",
+                validationHeader: "التحقق من الدقة",
+                valRegion: "المنطقة", valRef: "المرجع (FAO)", valCalc: "المحسوب", valStatus: "الحالة",
+                chartLabelD: "القطر (م)", chartLabelH: "الارتفاع (سم)",
+                chartRainDia: "القطر مقابل الأمطار", chartHeightDia: "الارتفاع مقابل القطر",
+                designIllustration: "رسم توضيحي للنظام",
+                visualTitle: "كيف تبتسم أرضك؟ (مخطط التوزيع)",
+                visualDesc: "توزيع الهلالات بنظام 'رقعة الشطرنج' لضمان التقاط المياه الفائضة من الصف الأول في الصف الثاني."
+            },
+            en: {
+                siteTitle: "Calculate Your Land's Smile",
+                home: "Home", calculator: "Calculator", documentation: "Docs",
+                heroTitle: "Precision Water Harvesting",
+                heroDesc: "Design micro-catchment systems based on FAO equations and peer-reviewed sources.",
+                startBtn: "Start Design", learnMore: "Scientific Docs",
+                featuresTitle: "Why this System?",
+                feat1Title: "Scientific", feat1Desc: "Based on FAO Equations E-1 to E-10.",
+                feat2Title: "Regional", feat2Desc: "Optimized for Arid zones (50-500mm).",
+                feat3Title: "Instant Reports", feat3Desc: "Get precise dimensions and download the report.",
+                calculatorTitle: "Crescent Design Calculator",
+                rainfall: "Rainfall Zone", slope: "Land Slope", purpose: "Purpose", area: "Land Area",
+                lblArid: "Very Arid (<250)", lblSemiArid: "Semi-Arid (250-500)", lblDry: "Dry (500-750)", lblSemiHumid: "Semi-Humid (750-1000)", lblHumid: "Humid (>1000)",
+                grazing: "Grazing", shrubs: "Shrubs", trees: "Fruit Trees", fieldCrops: "Field Crops", soilCons: "Soil Cons.",
+                dunam: "Dunam", hectare: "Hectare", acre: "Acre", squareMeter: "Sq. Meter",
+                calcBtn: "Calculate Design", saveBtn: "Save Report", reset: "Reset",
+                resultsTitle: "Design Results",
+                diameter: "Diameter (D)", ratio: "Catchment Ratio (C:A)",
+                height: "Bund Height (H)", catchArea: "Catchment Area", cultArea: "Cultivated Area", techDetails: "Technical Details",
+                pitsTotal: "Total Crescents", pitsPerHectare: "Density (Pits/Ha)", rowSpacing: "Row Spacing (L)", pitSpacing: "Pit Spacing (Y)", bundDist: "Distance Between Bunds",
+                docsTitle: "Documentation & Sources",
+                methodHeader: "Design Methodology",
+                methodBody: "The system is based on the 'Micro-Catchment' concept, concentrating runoff from a larger area into the root zone.",
+                equationsTitle: "System Equations",
+                eq1Title: "E-1: Diameter Calculation (D)",
+                eq1Desc: "Range: 2 - 12m. Based on climate zone (Very Arid = 8m, Semi-Arid = 6m, Humid = 4m).",
+                eq2Title: "E-2: Bund Height (H)",
+                eq2Desc: "Height is calculated in cm to ensure engineering stability.",
+                eqRatioTitle: "E-6: Catchment Ratio (C:A)",
+                eqRatioDesc: "The core formula for calculating the ratio between catchment and cultivated area, accounting for slope.",
+                
+                // Scientific Note English Translation
+                scientificNoteTitle: "Scientific Note on Equation:",
+                scientificNoteText: "The Catchment Ratio (C:A) was calculated based on FAO fundamental principles (Critchley & Siegert, 1991), using a Modified Empirical Formula to compensate for slope. A coefficient of (0.02) was adopted per slope degree to simplify runoff velocity loss calculations, a method used in preliminary design tools (Greener Land).",
+
+                eqSpacingTitle: "E-4 & E-5: Spacing",
+                eqSpacingDesc: "These spacings ensure appropriate overlap to collect water and prevent erosion.",
+                slopeAnalysisHeader: "Slope Impact Analysis",
+                validationHeader: "Validation",
+                valRegion: "Region", valRef: "Reference (FAO)", valCalc: "Calculated", valStatus: "Status",
+                chartLabelD: "Diameter (m)", chartLabelH: "Height (cm)",
+                chartRainDia: "Diameter vs Rainfall", chartHeightDia: "Height vs Diameter",
+                designIllustration: "System Schematic Illustration",
+                visualTitle: "How Your Land Smiles (Layout)",
+                visualDesc: "Crescents arranged in a 'Checkerboard' pattern to capture overflow from the first row in the second."
+            }
+        };
+
+        let lang = 'ar';
+        let charts = {};
+
+        // --- NAVIGATION LOGIC ---
+        function switchView(id) {
+            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
+            document.getElementById('view-'+id).classList.add('active');
+            
+            // Close Mobile Menu
+            document.getElementById('nav-menu').classList.remove('active');
+            document.getElementById('hamburger').classList.remove('active');
+            
+            // Initialize charts if docs view
+            if(id === 'docs') setTimeout(initDocsCharts, 300);
+            window.scrollTo(0,0);
+        }
+
+        function toggleLang() {
+            lang = lang === 'ar' ? 'en' : 'ar';
+            document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+            document.documentElement.lang = lang;
+            document.getElementById('lang-btn').textContent = lang === 'ar' ? 'EN' : 'AR';
+            
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if(i18n[lang][key]) el.innerHTML = i18n[lang][key];
+            });
+
+            // Update Dynamic Inputs
+            const climateVal = document.getElementById('climate-zone').value;
+            updateClimateLabel(climateVal);
+            
+            // Re-render Charts
+            Object.values(charts).forEach(c => { if(c) c.destroy(); });
+            if(document.getElementById('view-docs').classList.contains('active')) initDocsCharts();
+        }
+
+        // --- INPUT INTERACTION ---
+        const climateSlider = document.getElementById('climate-zone');
+        const slopeSlider = document.getElementById('slope');
+        
+        function updateClimateLabel(val) {
+            const v = parseInt(val);
+            let key = 'lblArid';
+            if(v === 25) key = 'lblSemiArid';
+            if(v === 50) key = 'lblDry';
+            if(v === 75) key = 'lblSemiHumid';
+            if(v === 100) key = 'lblHumid';
+            document.getElementById('val-climate').textContent = i18n[lang][key];
+            
+            document.querySelectorAll('#climate-opts .option-btn').forEach(btn => {
+                btn.classList.toggle('active', parseInt(btn.dataset.val) === v);
+            });
+        }
+
+        climateSlider.addEventListener('input', (e) => updateClimateLabel(e.target.value));
+        slopeSlider.addEventListener('input', (e) => {
+            document.getElementById('val-slope').textContent = e.target.value + '%';
+            document.querySelectorAll('#slope-opts .option-btn').forEach(btn => {
+                btn.classList.toggle('active', parseInt(btn.dataset.val) == e.target.value);
+            });
+        });
+
+        // Button Clicks for Sliders
+        document.querySelectorAll('#climate-opts .option-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                climateSlider.value = btn.dataset.val;
+                updateClimateLabel(btn.dataset.val);
+            });
+        });
+        document.querySelectorAll('#slope-opts .option-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                slopeSlider.value = btn.dataset.val;
+                document.getElementById('val-slope').textContent = btn.dataset.val + '%';
+                // Trigger slider update visually if needed
+                document.querySelectorAll('#slope-opts .option-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            });
+        });
+
+        // --- EARTH SMILES DRAWING LOGIC ---
+        function drawEarthSmiles(diameter, spacingL, spacingY) {
+            const canvas = document.getElementById('smilesCanvas');
+            if(!canvas) return;
+            
+            const ctx = canvas.getContext('2d');
+            const width = canvas.offsetWidth;
+            const height = canvas.offsetHeight;
+            canvas.width = width;
+            canvas.height = height;
+
+            // Clear with Soil color
+            ctx.fillStyle = "#e4d8c5";
+            ctx.fillRect(0, 0, width, height);
+
+            // Scale calculations to fit visual nicely
+            // Let's assume the canvas represents a certain width in meters.
+            // If Diameter is large (10m), we draw fewer. If small (2m), we draw more.
+            const scaleFactor = 15; // Pixels per meter approximation for visual
+            
+            const r_px = (diameter / 2) * scaleFactor;
+            const y_px = spacingY * scaleFactor; // Horizontal spacing between centers
+            const l_px = spacingL * scaleFactor; // Vertical spacing between rows
+
+            ctx.strokeStyle = "#ffffff";
+            ctx.lineWidth = 3;
+            ctx.lineCap = "round";
+
+            // Draw Contour Lines (Faint)
+            ctx.strokeStyle = "rgba(0,0,0,0.05)";
+            ctx.lineWidth = 1;
+            for(let y = 0; y < height; y += l_px) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(width, y);
+                ctx.stroke();
+            }
+
+            // Draw Smiles (Bunds)
+            // Color for bund
+            ctx.strokeStyle = "#8d6e63"; // Bund brown color
+            ctx.lineWidth = 4;
+            
+            // Water fill style
+            ctx.fillStyle = "rgba(33, 150, 243, 0.3)";
+
+            const rows = Math.ceil(height / l_px) + 1;
+            const cols = Math.ceil(width / y_px) + 2;
+
+            for(let row = 0; row < rows; row++) {
+                // Stagger every odd row (Quincunx pattern)
+                let xOffset = (row % 2 === 0) ? 0 : (y_px / 2);
+                
+                // Adjust vertical position
+                let yPos = row * l_px + (l_px/2);
+
+                for(let col = -1; col < cols; col++) {
+                    let xPos = col * y_px + xOffset;
+
+                    ctx.beginPath();
+                    // Arc(x, y, radius, startAngle, endAngle)
+                    // Semi-circle facing up (smile)
+                    ctx.arc(xPos, yPos, r_px, 0, Math.PI, false);
+                    
+                    // Fill water
+                    ctx.fill();
+                    // Stroke bund
+                    ctx.stroke();
+
+                    // Optional: Draw tree spot
+                    ctx.beginPath();
+                    ctx.fillStyle = "#2e7d32";
+                    ctx.arc(xPos, yPos + r_px - (r_px*0.3), 3, 0, 2*Math.PI);
+                    ctx.fill();
+                    // Reset fill for next water
+                    ctx.fillStyle = "rgba(33, 150, 243, 0.3)";
+                }
+            }
+        }
+
+        // --- CALCULATION ENGINE ---
+        document.getElementById('calc-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const climate = parseInt(climateSlider.value);
+            const slope = parseInt(slopeSlider.value);
+            const purpose = parseInt(document.getElementById('purpose').value);
+            const area = parseFloat(document.getElementById('area-val').value);
+            const unit = document.getElementById('area-unit').value;
+
+            // 1. Diameter (FAO E-1)
+            let D;
+            if (climate <= 25) D = 8;
+            else if (climate <= 75) D = 6;
+            else D = 4; // Reaches down towards 2m depending on adjustments
+            
+            // Adjustments
+            if(purpose === 0) D += 2; 
+            if(purpose === 100) D -= 1;
+            D = Math.max(2, Math.min(12, D));
+
+            // 2. Height (FAO E-2)
+            let H = 30 + 2.5 * (D - 2);
+
+            // 3. Spacing (FAO E-4, E-5)
+            const L = 0.75 * D; 
+            const Y = 1.10 * D; 
+            const bundDist = Y - (D / 2); 
+
+            // 4. Catchment Ratio (Simplified C:A) - KEEPING STRICT EQUATION
+            let baseRatio = 4.0;
+            if(climate >= 25) baseRatio = 3.0;
+            if(climate >= 50) baseRatio = 2.5;
+            if(climate >= 75) baseRatio = 2.0;
+            let C_A = baseRatio * (1 + (slope * 0.02)); 
+
+            // 5. Areas
+            const A_cult = (Math.PI / 8) * (D * D);
+            const A_catch = A_cult * C_A;
+            
+            // 6. Total Pits
+            let areaSqM = area;
+            if(unit === 'dunam') areaSqM *= 1000;
+            if(unit === 'hectare') areaSqM *= 10000;
+            if(unit === 'acre') areaSqM *= 4046.86;
+            
+            const pitsPerHectare = 10000 / (L * Y);
+            const totalPits = Math.floor((areaSqM / 10000) * pitsPerHectare);
+
+            // Render Results
+            const m = lang==='ar'?' م':' m';
+            const cm = lang==='ar'?' سم':' cm';
+            
+            document.getElementById('res-d').textContent = D.toFixed(1) + m;
+            document.getElementById('res-ca').textContent = C_A.toFixed(1);
+            document.getElementById('res-total').textContent = totalPits;
+            document.getElementById('res-dens').textContent = Math.round(pitsPerHectare);
+            document.getElementById('res-h').textContent = H.toFixed(0) + cm;
+            document.getElementById('res-l').textContent = L.toFixed(1) + m;
+            document.getElementById('res-y').textContent = Y.toFixed(1) + m;
+            document.getElementById('res-bund-dist').textContent = bundDist.toFixed(1) + m;
+            document.getElementById('res-cult').textContent = A_cult.toFixed(1) + ' m²';
+            document.getElementById('res-catch').textContent = A_catch.toFixed(1) + ' m²';
+
+            document.getElementById('results-area').style.display = 'block';
+            renderMainChart(D, H, C_A);
+            
+            // Draw the Earth Smiles
+            setTimeout(() => {
+                drawEarthSmiles(D, L, Y);
+            }, 100);
+            
+            setTimeout(() => { document.getElementById('results-area').scrollIntoView({ behavior: 'smooth' }); }, 100);
+        });
+
+        document.querySelector('button[type="reset"]').addEventListener('click', () => {
+            document.getElementById('results-area').style.display = 'none';
+        });
+
+        // --- SAVE FUNCTION ---
+        document.getElementById('save-results').addEventListener('click', () => {
+            const text = `
+            ${i18n[lang].siteTitle} - ${i18n[lang].resultsTitle}
+            ------------------------------------------
+            ${i18n[lang].diameter}: ${document.getElementById('res-d').textContent}
+            ${i18n[lang].height}: ${document.getElementById('res-h').textContent}
+            ${i18n[lang].ratio}: ${document.getElementById('res-ca').textContent}
+            
+            ${i18n[lang].techDetails}:
+            - ${i18n[lang].rowSpacing}: ${document.getElementById('res-l').textContent}
+            - ${i18n[lang].pitSpacing}: ${document.getElementById('res-y').textContent}
+            - ${i18n[lang].bundDist}: ${document.getElementById('res-bund-dist').textContent}
+            
+            ${i18n[lang].pitsTotal}: ${document.getElementById('res-total').textContent}
+            ${i18n[lang].pitsPerHectare}: ${document.getElementById('res-dens').textContent}
+            ------------------------------------------
+            Generated on: ${new Date().toLocaleDateString()}
+            `;
+            const blob = new Blob([text], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'water-harvesting-design.txt';
+            a.click();
+        });
+
+        // --- CHARTS ---
+        function renderMainChart(D, H, CA) {
+            const ctx = document.getElementById('mainChart').getContext('2d');
+            if(charts.main) charts.main.destroy();
+            
+            charts.main = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: [i18n[lang].chartLabelD, 'C:A'],
+                    datasets: [{
+                        label: 'Design',
+                        data: [D, CA],
+                        backgroundColor: ['#2e7d32', '#ff9800'],
+                        borderRadius: 8
+                    }]
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    plugins: { legend: {display: false} },
+                    animation: { duration: 1500, easing: 'easeOutElastic' }
+                }
+            });
+        }
+
+        function initDocsCharts() {
+            // 1. Diameter vs Rainfall (Reaches 2m)
+            const ctxD = document.getElementById('diameterChart').getContext('2d');
+            if(charts.diameter) charts.diameter.destroy();
+            charts.diameter = new Chart(ctxD, {
+                type: 'line',
+                data: {
+                    labels: [i18n[lang].lblArid, i18n[lang].lblSemiArid, i18n[lang].lblDry, i18n[lang].lblSemiHumid, i18n[lang].lblHumid],
+                    datasets: [{
+                        label: i18n[lang].chartLabelD,
+                        data: [12, 10, 8, 5, 2], // Explicit 2m lower bound
+                        borderColor: '#2e7d32', backgroundColor: 'rgba(46,125,50,0.1)', fill: true, tension: 0.3
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: {beginAtZero: true} } }
+            });
+
+            // 2. Height vs Diameter
+            const ctxH = document.getElementById('heightChart').getContext('2d');
+            if(charts.height) charts.height.destroy();
+            charts.height = new Chart(ctxH, {
+                type: 'line',
+                data: {
+                    labels: [2, 4, 6, 8, 10, 12],
+                    datasets: [{
+                        label: i18n[lang].chartLabelH,
+                        data: [30, 35, 40, 45, 50, 50],
+                        borderColor: '#2196f3', backgroundColor: 'rgba(33,150,243,0.1)', fill: true
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+
+            // 3. Slope Analysis [New]
+            const ctxS = document.getElementById('slopeChart').getContext('2d');
+            if(charts.slope) charts.slope.destroy();
+            const slopes = [0, 5, 10, 15];
+            charts.slope = new Chart(ctxS, {
+                type: 'line',
+                data: {
+                    labels: slopes.map(s => s+'%'),
+                    datasets: [
+                        { label: lang==='ar'?'جافة':'Arid', data: slopes.map(s => 4*(1+s*0.02)), borderColor: '#d32f2f', tension: 0.3 },
+                        { label: lang==='ar'?'شبه جافة':'Semi-Arid', data: slopes.map(s => 3*(1+s*0.02)), borderColor: '#f57c00', tension: 0.3 },
+                        { label: lang==='ar'?'رطبة':'Humid', data: slopes.map(s => 2*(1+s*0.02)), borderColor: '#388e3c', tension: 0.3 }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: {title: {display: true, text: 'C:A Ratio'}} } }
+            });
+        }
+
+        // Init
+        document.getElementById('hamburger').addEventListener('click', () => {
+            document.getElementById('nav-menu').classList.toggle('active');
+            document.getElementById('hamburger').classList.toggle('active');
+        });
+        document.getElementById('lang-btn').addEventListener('click', toggleLang);
+        
+        // Initial call
+        updateClimateLabel(25);
+    </script>
+</body>
+</html>
