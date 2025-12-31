@@ -839,7 +839,6 @@
             ctx.fillRect(0, 0, width, height);
 
             // Scale calculations to fit visual nicely
-            // Let's assume the canvas represents a certain width in meters.
             // If Diameter is large (10m), we draw fewer. If small (2m), we draw more.
             const scaleFactor = 15; // Pixels per meter approximation for visual
             
@@ -903,46 +902,71 @@
             }
         }
 
-        // --- CALCULATION ENGINE ---
+        // --- CALCULATION ENGINE (UPDATED BASED ON THESIS) ---
         document.getElementById('calc-form').addEventListener('submit', (e) => {
             e.preventDefault();
-            const climate = parseInt(climateSlider.value);
+            const climateVal = parseInt(climateSlider.value); // 0, 25, 50, 75, 100
             const slope = parseInt(slopeSlider.value);
-            const purpose = parseInt(document.getElementById('purpose').value);
+            const purposeSelect = parseInt(document.getElementById('purpose').value);
             const area = parseFloat(document.getElementById('area-val').value);
             const unit = document.getElementById('area-unit').value;
 
-            // 1. Diameter (FAO E-1)
-            let D;
-            if (climate <= 25) D = 8;
-            else if (climate <= 75) D = 6;
-            else D = 4; // Reaches down towards 2m depending on adjustments
-            
-            // Adjustments
-            if(purpose === 0) D += 2; 
-            if(purpose === 100) D -= 1;
+            // 1. Define Constants based on PDF tables
+            let D0, C0;
+
+            // Mapping Climate Slider to Rainfall (P) Logic from Thesis
+            // P < 250 (Arid)
+            // 250 <= P <= 750 (Semi-Arid / Dry)
+            // P > 750 (Humid)
+            if (climateVal === 0) { // < 250 (Arid)
+                D0 = 8;
+                C0 = 3.0;
+            } else if (climateVal <= 50) { // 250 - 750 (Semi-Arid/Dry)
+                D0 = 6;
+                C0 = 2.2;
+            } else { // > 750 (Humid)
+                D0 = 4;
+                C0 = 1.6;
+            }
+
+            // Mapping Purpose to factors (r and Fc) from Thesis
+            // HTML Values: 0=Grazing, 25=Shrubs, 50=Trees, 75=Crops, 100=Soil
+            // Thesis r: Grazing=100, Shrubs=75, Trees=50, Herbs=25, Soil=0
+            // Thesis Fc: Grazing=1.0, Trees/Shrubs=0.8, Herbs/Soil=0.6
+            let r, Fc;
+            switch(purposeSelect) {
+                case 0: r = 100; Fc = 1.0; break;   // Grazing
+                case 25: r = 75; Fc = 0.8; break;   // Shrubs
+                case 50: r = 50; Fc = 0.8; break;   // Trees
+                case 75: r = 25; Fc = 0.6; break;   // Crops/Herbs
+                case 100: r = 0; Fc = 0.6; break;   // Soil
+                default: r = 50; Fc = 0.8;
+            }
+
+            // 2. Diameter Calculation (Equation 1)
+            // D = max(2, min(12, D0 + 0.04 * r))
+            let D = D0 + (0.04 * r);
             D = Math.max(2, Math.min(12, D));
 
-            // 2. Height (FAO E-2)
-            let H = 30 + 2.5 * (D - 2);
+            // 3. Height Calculation (Equation 2)
+            // H(m) = 0.26 + 0.02 * D(m)
+            let H_m = 0.26 + (0.02 * D);
+            let H_cm = H_m * 100;
 
-            // 3. Spacing (FAO E-4, E-5)
+            // 4. Catchment Ratio (Equation based on PDF pg 16)
+            // C:A = [C0 + Fc] * (1 + 0.02 * S)
+            let CA = (C0 + Fc) * (1 + (0.02 * slope));
+
+            // 5. Spacing
             const L = 0.75 * D; 
             const Y = 1.10 * D; 
             const bundDist = Y - (D / 2); 
 
-            // 4. Catchment Ratio (Simplified C:A) - KEEPING STRICT EQUATION
-            let baseRatio = 4.0;
-            if(climate >= 25) baseRatio = 3.0;
-            if(climate >= 50) baseRatio = 2.5;
-            if(climate >= 75) baseRatio = 2.0;
-            let C_A = baseRatio * (1 + (slope * 0.02)); 
-
-            // 5. Areas
-            const A_cult = (Math.PI / 8) * (D * D);
-            const A_catch = A_cult * C_A;
+            // 6. Areas
+            const A_cult = (Math.PI * Math.pow(D, 2)) / 8;
+            const A_catch = A_cult * CA; 
             
-            // 6. Total Pits
+            // 7. Total Pits
             let areaSqM = area;
             if(unit === 'dunam') areaSqM *= 1000;
             if(unit === 'hectare') areaSqM *= 10000;
@@ -956,10 +980,10 @@
             const cm = lang==='ar'?' سم':' cm';
             
             document.getElementById('res-d').textContent = D.toFixed(1) + m;
-            document.getElementById('res-ca').textContent = C_A.toFixed(1);
+            document.getElementById('res-ca').textContent = CA.toFixed(1);
             document.getElementById('res-total').textContent = totalPits;
             document.getElementById('res-dens').textContent = Math.round(pitsPerHectare);
-            document.getElementById('res-h').textContent = H.toFixed(0) + cm;
+            document.getElementById('res-h').textContent = H_cm.toFixed(0) + cm;
             document.getElementById('res-l').textContent = L.toFixed(1) + m;
             document.getElementById('res-y').textContent = Y.toFixed(1) + m;
             document.getElementById('res-bund-dist').textContent = bundDist.toFixed(1) + m;
@@ -967,7 +991,7 @@
             document.getElementById('res-catch').textContent = A_catch.toFixed(1) + ' m²';
 
             document.getElementById('results-area').style.display = 'block';
-            renderMainChart(D, H, C_A);
+            renderMainChart(D, H_cm, CA);
             
             // Draw the Earth Smiles
             setTimeout(() => {
@@ -1034,50 +1058,57 @@
         }
 
         function initDocsCharts() {
-            // 1. Diameter vs Rainfall (Reaches 2m)
+            // 1. Diameter vs Rainfall (Based on Thesis Logic D0)
             const ctxD = document.getElementById('diameterChart').getContext('2d');
             if(charts.diameter) charts.diameter.destroy();
+            // Assuming r=50 (Trees) which adds +2 to D0
+            // Arid(8) -> 10, Semi(6) -> 8, Humid(4) -> 6
             charts.diameter = new Chart(ctxD, {
                 type: 'line',
                 data: {
                     labels: [i18n[lang].lblArid, i18n[lang].lblSemiArid, i18n[lang].lblDry, i18n[lang].lblSemiHumid, i18n[lang].lblHumid],
                     datasets: [{
-                        label: i18n[lang].chartLabelD,
-                        data: [12, 10, 8, 5, 2], // Explicit 2m lower bound
-                        borderColor: '#2e7d32', backgroundColor: 'rgba(46,125,50,0.1)', fill: true, tension: 0.3
+                        label: i18n[lang].chartLabelD + ' (Trees)',
+                        data: [10, 8, 8, 6, 6], 
+                        borderColor: '#2e7d32', backgroundColor: 'rgba(46,125,50,0.1)', fill: true, tension: 0.1
                     }]
                 },
                 options: { responsive: true, maintainAspectRatio: false, scales: { y: {beginAtZero: true} } }
             });
 
-            // 2. Height vs Diameter
+            // 2. Height vs Diameter (H = 0.26 + 0.02*D)
             const ctxH = document.getElementById('heightChart').getContext('2d');
             if(charts.height) charts.height.destroy();
+            // D=2 -> H=0.30m (30cm), D=12 -> H=0.50m (50cm)
             charts.height = new Chart(ctxH, {
                 type: 'line',
                 data: {
                     labels: [2, 4, 6, 8, 10, 12],
                     datasets: [{
                         label: i18n[lang].chartLabelH,
-                        data: [30, 35, 40, 45, 50, 50],
+                        data: [30, 34, 38, 42, 46, 50],
                         borderColor: '#2196f3', backgroundColor: 'rgba(33,150,243,0.1)', fill: true
                     }]
                 },
                 options: { responsive: true, maintainAspectRatio: false }
             });
 
-            // 3. Slope Analysis [New]
+            // 3. Slope Analysis (Updated C0 values)
             const ctxS = document.getElementById('slopeChart').getContext('2d');
             if(charts.slope) charts.slope.destroy();
             const slopes = [0, 5, 10, 15];
+            // Using Tree Fc=0.8
+            // Arid C0=3.0 -> Base 3.8
+            // Semi C0=2.2 -> Base 3.0
+            // Humid C0=1.6 -> Base 2.4
             charts.slope = new Chart(ctxS, {
                 type: 'line',
                 data: {
                     labels: slopes.map(s => s+'%'),
                     datasets: [
-                        { label: lang==='ar'?'جافة':'Arid', data: slopes.map(s => 4*(1+s*0.02)), borderColor: '#d32f2f', tension: 0.3 },
-                        { label: lang==='ar'?'شبه جافة':'Semi-Arid', data: slopes.map(s => 3*(1+s*0.02)), borderColor: '#f57c00', tension: 0.3 },
-                        { label: lang==='ar'?'رطبة':'Humid', data: slopes.map(s => 2*(1+s*0.02)), borderColor: '#388e3c', tension: 0.3 }
+                        { label: lang==='ar'?'جافة (Trees)':'Arid (Trees)', data: slopes.map(s => 3.8*(1+s*0.02)), borderColor: '#d32f2f', tension: 0.3 },
+                        { label: lang==='ar'?'شبه جافة (Trees)':'Semi-Arid (Trees)', data: slopes.map(s => 3.0*(1+s*0.02)), borderColor: '#f57c00', tension: 0.3 },
+                        { label: lang==='ar'?'رطبة (Trees)':'Humid (Trees)', data: slopes.map(s => 2.4*(1+s*0.02)), borderColor: '#388e3c', tension: 0.3 }
                     ]
                 },
                 options: { responsive: true, maintainAspectRatio: false, scales: { y: {title: {display: true, text: 'C:A Ratio'}} } }
